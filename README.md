@@ -1,5 +1,5 @@
 # apiansi
-Código que implementa una conexión a un contenedor Docker con Redis como base de datos y la lógica necesaria para conectar con esta base de datos a través de FastAPI con el estándar OpenAPI
+Código que implementa una conexión a un contenedor Docker con Redis como base de datos y la lógica necesaria para conectar con esta base de datos a través de FastAPI con el estándar OpenAPI para una pequeña App de gestión de tareas.
 
 Que cubre el documento
 
@@ -43,6 +43,210 @@ Que cubre el documento
     !nano main.py
 
 >main.py
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+Crear una clase llamada Task, que herede de BaseModel de Pydantic para poder utilizar la validación automática de datos y define los atributos de la tarea (id, title, description, status):
+
+    # Importar Pydantic
+    from pydantic import BaseModel
+
+    # Crear la clase Task
+    class Task(BaseModel):
+        id: int
+        title: str
+        description: str
+        status: str
+        
+Crear una clase llamada TaskList, que herede de BaseModel de Pydantic para poder utilizar la validación automática de datos y define los atributos de la lista de tareas (id, tasks):
+
+    # Crear la clase TaskList
+    class TaskList(BaseModel):
+        id: int
+        tasks: List[Task]
+        
+Crear una función llamada create_task que utilizará el decorador @post para recibir una petición post y crear una nueva tarea en la base de datos:
+
+    # Importar los decoradores de FastAPI
+    from fastapi import FastAPI, HTTPException, Post
+
+    # Crear la función create_task
+    @app.post("/tasks/")
+    def create_task(task: Task):
+        # Lógica para crear una nueva tarea en la base de datos
+        pass
+        
+Crear una función llamada read_tasks que utilizará el decorador @get para recibir una petición get y devolver todas las tareas existentes en la base de datos:
+
+    # Importar los decoradores de FastAPI
+    from fastapi import FastAPI, HTTPException, Get
+
+    # Crear la función read_tasks
+    @app.get("/tasks/")
+    def read_tasks():
+        # Lógica para obtener todas las tareas de la base de datos
+        return {"tasks": tasks}
+        
+Crear una función llamada update_task que utilizará el decorador @put para recibir una petición put y actualizar una tarea existente en la base de datos:
+
+    # Importar los decoradores de FastAPI
+    from fastapi import FastAPI, HTTPException, Put
+
+    # Crear la función update_task
+    @app.put("/tasks/{task_id}")
+    def update_task(task_id: int, task: Task):
+        # Lógica para actualizar una tarea existente en la base de datos
+        pass
+        
+Crear una función llamada delete_task que utilizará el decorador @delete para recibir una petición delete y eliminar una tarea existente en la base de datos:
+
+    # Importar los decoradores de FastAPI
+    from fastapi import FastAPI, HTTPException, Delete
+
+    # Crear la función delete_task
+    @app.delete("/tasks/{task_id}")
+    def delete_task(task_id: int):
+        # Lógica para eliminar una tarea existente en la base de datos
+        pass
+        
+Crear una función llamada main que utilizará el decorador @app.route para establecer la ruta principal de la aplicación y utilizará el método run() de FastAPI para iniciar el servidor:
+
+    # Crear la función main
+    def main():
+        app = FastAPI()
+        app.route("/")(main)
+        app.run(port=8000)
+        
+    # Importamos las librerias necesarias
+    import json
+    from typing import List
+    from fastapi import FastAPI, HTTPException, Request
+    from pydantic import BaseModel
+    from redis import Redis
+
+    # Instanciamos el objeto de la app de fastapi
+    app = FastAPI()
+
+    # Conectamos con el contenedor de redis usando el host 'redis' y el puerto 6379
+    redis = Redis(host='redis', port=6379)
+
+    # Creamos la clase Task que hereda de BaseModel de Pydantic
+    class Task(BaseModel):
+        id: int
+        title: str
+        description: str
+        status: str
+
+    # Creamos la clase TaskList que hereda de BaseModel de Pydantic
+    class TaskList(BaseModel):
+        id: int
+        tasks: List[Task]
+
+    # Creamos la funcion create_task que se encarga de crear una nueva tarea
+    @app.post("/tasks/")
+    def create_task(task: Task):
+        # Convertimos el objeto task a un diccionario
+        task_data = task.dict()
+        # Generamos un id para la tarea
+        task_data['id'] = redis.incr('global:nextTaskId')
+        # guardamos los datos en redis
+        redis.hmset(f'task:{task_data["id"]}', task_data)
+        # retornamos los datos de la tarea
+        return task_data
+
+    # Creamos la funcion read_tasks que se encarga de obtener todas las tareas existentes
+    @app.get("/tasks/")
+    def read_tasks():
+        # obtenemos todas las llaves de las tareas
+        task_keys = redis.keys('task:*')
+        tasks = []
+        # Iteramos por las llaves y obtenemos los valores almacenados en redis
+        for key in task_keys:
+            task = json.loads(redis.hgetall(key))
+            tasks.append(task)
+        # retornamos la lista de tareas
+        return {"tasks": tasks}
+
+    # Creamos la funcion update_task que se encarga de actualizar una tarea existente
+    @app.put("/tasks/{task_id}")
+    def update_task(task_id: int, task: Task):
+        # Convertimos el objeto task a un diccionario
+        task_data = task.dict()
+        # Agregamos el id de la tarea al diccionario
+        task_data['id'] = task_id
+        # actualizamos los datos en redis
+        redis.hmset(f'task:{task_id}', task_data)
+        # retornamos los datos actualizados de la tarea
+        return task_data
+
+    # Creamos la funcion delete_task que se encarga de eliminar una tarea existente
+    @app.delete("/tasks/{task_id}")
+    def delete_task(task_id: int):
+        # eliminamos la tarea de redis
+        redis.delete(f'task:{task_id}')
+        # retornamos un mensaje de confirmacion
+        return {"message": "Task deleted"}
+
+    # Creamos la funcion read_root que se encarga de la ruta principal
+    @app.get("/")
+    def read_root():
+        return {"Hello": "World"}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+> main.py
+
+    import json
+    from typing import List
+
+    from fastapi import FastAPI, HTTPException, Request
+    from pydantic import BaseModel
+    from redis import Redis
+
+    app = FastAPI()
+    redis = Redis(host='redis', port=6379)
+
+    class Task(BaseModel):
+        id: int
+        title: str
+        description: str
+        status: str
+
+    class TaskList(BaseModel):
+        id: int
+        tasks: List[Task]
+
+
+    @app.post("/tasks/")
+    def create_task(task: Task):
+        task_data = task.dict()
+        task_data['id'] = redis.incr('global:nextTaskId')
+        redis.hmset(f'task:{task_data["id"]}', task_data)
+        return task_data
+
+    @app.get("/tasks/")
+    def read_tasks():
+        task_keys = redis.keys('task:*')
+        tasks = []
+        for key in task_keys:
+            task = json.loads(redis.hgetall(key))
+            tasks.append(task)
+        return {"tasks": tasks}
+
+    @app.put("/tasks/{task_id}")
+    def update_task(task_id: int, task: Task):
+        task_data = task.dict()
+        task_data['id'] = task_id
+        redis.hmset(f'task:{task_id}', task_data)
+        return task_data
+
+    @app.delete("/tasks/{task_id}")
+    def delete_task(task_id: int):
+        redis.delete(f'task:{task_id}')
+        return {"message": "Task deleted"}
+
+    @app.get("/")
+    def read_root():
+        return {"Hello": "World"}
+
+> main.py "con comentarios"
 
     # Importamos las librerias necesarias
     import json
